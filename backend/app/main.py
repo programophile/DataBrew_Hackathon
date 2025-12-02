@@ -1,5 +1,6 @@
 # backend.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
+from fastapi.responses import JSONResponse
 import pandas as pd
 import pickle
 import os
@@ -13,6 +14,18 @@ from .predictive_analytics import (
     get_sales_data_last_60_days,
     generate_predictive_insights
 )
+from .auth import (
+    LoginRequest,
+    SignupRequest,
+    AuthResponse,
+    UserResponse,
+    login_user,
+    signup_user,
+    logout_user,
+    verify_token,
+    get_user_profile
+)
+from typing import Optional
 
 app = FastAPI(title="Coffee Sales Analytics API")
 
@@ -58,11 +71,16 @@ def root():
         "status": "running",
         "database": "connected" if engine else "disconnected",
         "endpoints": {
+            "/login": "POST - Login with admin credentials (admin@gmail.com / admin123)",
+            "/signup": "POST - Signup (disabled - only admin access)",
+            "/logout": "POST - Logout current session",
+            "/profile": "GET - Get user profile (requires auth)",
+            "/verify": "GET - Verify authentication token",
             "/forecast": "GET - Returns sales forecast for next N days",
             "/ai-insights": "GET - Returns AI-generated insights",
-            "/predictive-insights": "GET - Returns comprehensive predictive insights (weather + holidays + sales)",
-            "/holidays": "GET - Returns upcoming holidays for next 30 days",
-            "/weather-forecast": "GET - Returns weather forecast for next 30 days",
+            "/predictive-insights": "GET - Returns comprehensive predictive insights",
+            "/holidays": "GET - Returns upcoming holidays",
+            "/weather-forecast": "GET - Returns weather forecast",
             "/sales-data": "GET - Returns sales trend data",
             "/dashboard-metrics": "GET - Returns dashboard key metrics",
             "/best-selling": "GET - Returns best-selling product",
@@ -70,9 +88,89 @@ def root():
             "/customer-feedback": "GET - Returns recent customer feedback",
             "/barista-schedule": "GET - Returns barista schedule",
             "/sales-analytics": "GET - Returns aggregated sales analytics",
-            "/cash-flow": "GET - Returns cash flow data (income vs expenses)",
+            "/cash-flow": "GET - Returns cash flow data",
+            "/ingredients": "GET - Get all ingredients",
+            "/products": "GET - Get all products",
             "/docs": "API documentation"
         }
+    }
+
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@app.post("/login", response_model=AuthResponse)
+async def login(login_data: LoginRequest):
+    """
+    Login with admin credentials
+    
+    Email: admin@gmail.com
+    Password: admin123
+    
+    Returns authentication token for subsequent requests
+    """
+    return await login_user(login_data)
+
+
+@app.post("/signup", response_model=AuthResponse)
+async def signup(signup_data: SignupRequest):
+    """
+    Signup endpoint (disabled - only admin user exists)
+    """
+    return await signup_user(signup_data)
+
+
+@app.post("/logout")
+async def logout(authorization: Optional[str] = Header(None)):
+    """
+    Logout current user session
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    return await logout_user(token)
+
+
+@app.get("/profile", response_model=UserResponse)
+async def profile(authorization: Optional[str] = Header(None)):
+    """
+    Get current user profile
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    return await get_user_profile(token)
+
+
+@app.get("/verify")
+async def verify(authorization: Optional[str] = Header(None)):
+    """
+    Verify if authentication token is valid
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    user = await verify_token(token)
+    
+    return {
+        "valid": True,
+        "user": user
     }
 
 @app.get("/forecast")

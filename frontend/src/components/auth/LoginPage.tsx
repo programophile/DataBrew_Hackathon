@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Coffee, Eye, EyeOff, Sparkles } from "lucide-react";
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (token: string, user: any) => void;
   onSwitchToSignup: () => void;
 }
 
@@ -11,11 +11,38 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login
-    onLogin();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:8080/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Login successful
+        onLogin(data.token, data.user);
+      } else {
+        // Login failed
+        setError(data.detail || "Invalid email or password");
+      }
+    } catch (err) {
+      setError("Unable to connect to server. Please try again.");
+      console.error("Login error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,7 +59,7 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/50 p-8 relative overflow-hidden">
           {/* AI Glow Effect */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#8b5e3c] opacity-10 rounded-full blur-3xl"></div>
-          
+
           {/* Logo and Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#8b5e3c] to-[#b08968] rounded-2xl mb-4 shadow-lg">
@@ -80,7 +107,11 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b5e3c]/50 hover:text-[#8b5e3c] transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -106,13 +137,23 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
               </button>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-[#8b5e3c] to-[#b08968] text-white py-3 rounded-xl hover:shadow-lg hover:shadow-[#8b5e3c]/30 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-[#8b5e3c] to-[#b08968] text-white py-3 rounded-xl hover:shadow-lg hover:shadow-[#8b5e3c]/30 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Sign In</span>
-              <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+              <span>{loading ? "Signing In..." : "Sign In"}</span>
+              {!loading && (
+                <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+              )}
             </button>
 
             {/* Divider */}
@@ -121,7 +162,9 @@ export function LoginPage({ onLogin, onSwitchToSignup }: LoginPageProps) {
                 <div className="w-full border-t border-[#d8c3a5]"></div>
               </div>
               <div className="relative flex justify-center">
-                <span className="px-4 bg-white/80 text-[#8b5e3c]/60">or continue with</span>
+                <span className="px-4 bg-white/80 text-[#8b5e3c]/60">
+                  or continue with
+                </span>
               </div>
             </div>
 

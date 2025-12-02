@@ -25,9 +25,10 @@ const menuItems = [
 interface SidebarProps {
   activePage: string;
   onPageChange: (pageId: string) => void;
+  onLogout?: () => void;
 }
 
-export function Sidebar({ activePage, onPageChange }: SidebarProps) {
+export function Sidebar({ activePage, onPageChange, onLogout }: SidebarProps) {
   return (
     <div className="w-64 h-screen bg-[#fffaf3] border-r border-[#d8c3a5]/30 flex flex-col">
       {/* Logo */}
@@ -74,6 +75,7 @@ export function Sidebar({ activePage, onPageChange }: SidebarProps) {
         <Button
           variant="outline"
           className="w-full border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#d8c3a5]/20"
+          onClick={onLogout}
         >
           <LogOut className="w-4 h-4 mr-2" />
           Logout

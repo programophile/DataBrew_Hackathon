@@ -14,28 +14,48 @@ import { SignupPage } from "./components/auth/SignupPage";
 function App() {
   const [activePage, setActivePage] = useState("dashboard");
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Initialize from localStorage
-    const saved = localStorage.getItem("isAuthenticated");
-    return saved === "true";
+    // Initialize from localStorage - check if token exists
+    const token = localStorage.getItem("authToken");
+    return !!token;
   });
   const [authView, setAuthView] = useState<"login" | "signup">("login");
 
-  // Persist authentication state
-  useEffect(() => {
-    localStorage.setItem("isAuthenticated", String(isAuthenticated));
-  }, [isAuthenticated]);
-
-  const handleLogin = () => {
+  const handleLogin = (token: string, user: any) => {
+    // Store token and user info
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("user", JSON.stringify(user));
     setIsAuthenticated(true);
   };
 
-  const handleSignup = () => {
+  const handleSignup = (token: string, user: any) => {
+    // Store token and user info
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("user", JSON.stringify(user));
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("authToken");
+
+    // Call backend logout API
+    if (token) {
+      try {
+        await fetch("http://localhost:8080/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+    }
+
+    // Clear local storage and state
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     setIsAuthenticated(false);
-    localStorage.removeItem("isAuthenticated");
     setAuthView("login");
   };
 
@@ -82,7 +102,11 @@ function App() {
   return (
     <div className="flex h-screen bg-[#f9f5f2] overflow-hidden">
       {/* Sidebar */}
-      <Sidebar activePage={activePage} onPageChange={setActivePage} />
+      <Sidebar
+        activePage={activePage}
+        onPageChange={setActivePage}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
