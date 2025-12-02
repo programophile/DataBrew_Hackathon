@@ -6,7 +6,10 @@ import os
 from sqlalchemy import create_engine
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
-from .gemini_service import generate_ai_insights, prepare_sales_summary
+try:
+    from .gemini_service import generate_ai_insights, prepare_sales_summary
+except ImportError:
+    from gemini_service import generate_ai_insights, prepare_sales_summary
 
 app = FastAPI(title="Coffee Sales Analytics API")
 
@@ -60,9 +63,50 @@ def root():
             "/inventory-predictions": "GET - Returns inventory demand predictions",
             "/customer-feedback": "GET - Returns recent customer feedback",
             "/barista-schedule": "GET - Returns barista schedule",
+            "/products/categories": "GET - Returns product categories",
+            "/products/{product_id}/ingredients": "GET - Returns ingredients for a product",
             "/docs": "API documentation"
         }
     }
+
+@app.get("/debug/tables")
+def debug_tables():
+    """
+    Debug endpoint to check available tables and their structure
+    """
+    if engine is None:
+        return {"error": "Database connection not available"}
+    
+    try:
+        # Get list of tables
+        query = "SHOW TABLES"
+        tables_df = pd.read_sql(query, engine)
+        tables = tables_df.iloc[:, 0].tolist()
+        
+        result = {
+            "tables": tables,
+            "coffee_sales_exists": "coffee_sales" in tables,
+            "inventory_exists": "inventory" in tables
+        }
+        
+        # Check coffee_sales columns
+        if "coffee_sales" in tables:
+            query = "DESCRIBE coffee_sales"
+            columns_df = pd.read_sql(query, engine)
+            result["coffee_sales_columns"] = columns_df["Field"].tolist()
+        
+        # Check inventory columns
+        if "inventory" in tables:
+            query = "DESCRIBE inventory"
+            columns_df = pd.read_sql(query, engine)
+            result["inventory_columns"] = columns_df["Field"].tolist()
+        
+        return result
+    except Exception as e:
+        print(f"Error in debug endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
 
 @app.get("/forecast")
 def forecast(days: int = 7):
@@ -824,3 +868,117 @@ def get_cash_flow(period: str = "month"):
     except Exception as e:
         print(f"Error in cash-flow endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching cash flow: {str(e)}")
+
+
+@app.get("/api/product-categories")
+def get_product_categories():
+    """
+    Returns unique product categories from coffee_sales table
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        query = """
+            SELECT DISTINCT product_category
+            FROM coffee_sales
+            WHERE product_category IS NOT NULL
+            ORDER BY product_category
+        """
+        df = pd.read_sql(query, engine)
+        
+        if df.empty:
+            return {"categories": []}
+
+        categories = [row['product_category'] for _, row in df.iterrows()]
+        return {"categories": categories}
+
+    except Exception as e:
+        print(f"Error fetching categories: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
+
+
+@app.get("/api/products-by-category/{category}")
+def get_products_by_category(category: str):
+    """
+    Returns all products in a specific category from coffee_sales table
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        query = f"""
+            SELECT DISTINCT product_id, product_detail, product_type
+            FROM coffee_sales
+            WHERE product_category = '{category}'
+            ORDER BY product_detail
+        """
+        df = pd.read_sql(query, engine)
+        
+        if df.empty:
+            return {"category": category, "products": []}
+
+        products = []
+        for _, row in df.iterrows():
+            products.append({
+                "product_id": int(row['product_id']),
+                "product_name": row['product_detail'],
+                "product_type": row['product_type']
+            })
+
+        return {"category": category, "products": products}
+
+    except Exception as e:
+        print(f"Error fetching products by category: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching products: {str(e)}")
+
+
+@app.get("/api/product-ingredients/{product_id}")
+def get_product_ingredients(product_id: int):
+    """
+    Returns ingredients for a specific product with calculated updated_stock
+    Joins recipes and ingredients tables
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        query = f"""
+            SELECT 
+                i.ingredient_id,
+                i.ingredient_name,
+                i.unit_type,
+                i.current_stock,
+                i.restock_level,
+                r.quantity_used
+            FROM recipes r
+            JOIN ingredients i ON r.ingredient_id = i.ingredient_id
+            WHERE r.product_id = {product_id}
+            ORDER BY i.ingredient_name
+        """
+        df = pd.read_sql(query, engine)
+        
+        if df.empty:
+            return {"product_id": product_id, "ingredients": []}
+
+        ingredients = []
+        for _, row in df.iterrows():
+            current_stock = int(row['current_stock']) if row['current_stock'] else 0
+            quantity_used = int(row['quantity_used']) if row['quantity_used'] else 0
+            updated_stock = current_stock - quantity_used
+            
+            ingredients.append({
+                "ingredient_id": int(row['ingredient_id']),
+                "ingredient_name": row['ingredient_name'],
+                "unit_type": row['unit_type'],
+                "quantity_used": quantity_used,
+                "current_stock": current_stock,
+                "updated_stock": updated_stock,
+                "is_low_stock": updated_stock < 10
+            })
+
+        return {"product_id": product_id, "ingredients": ingredients}
+
+    except Exception as e:
+        print(f"Error fetching product ingredients: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching ingredients: {str(e)}")

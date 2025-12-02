@@ -8,6 +8,7 @@ const menuItems = [
   { icon: Package, label: "Inventory", id: "inventory" },
   { icon: Users, label: "Staff Management", id: "staff" },
   { icon: Sparkles, label: "AI Insights", id: "ai-insights" },
+  { icon: Package, label: "Product Management", id: "products" },
   { icon: Settings, label: "Settings", id: "settings" },
 ];
 
