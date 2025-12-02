@@ -1,5 +1,6 @@
 # backend.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
+from fastapi.responses import JSONResponse
 import pandas as pd
 import pickle
 import os
@@ -13,6 +14,18 @@ from .predictive_analytics import (
     get_sales_data_last_60_days,
     generate_predictive_insights
 )
+from .auth import (
+    LoginRequest,
+    SignupRequest,
+    AuthResponse,
+    UserResponse,
+    login_user,
+    signup_user,
+    logout_user,
+    verify_token,
+    get_user_profile
+)
+from typing import Optional
 
 app = FastAPI(title="Coffee Sales Analytics API")
 
@@ -58,11 +71,16 @@ def root():
         "status": "running",
         "database": "connected" if engine else "disconnected",
         "endpoints": {
+            "/login": "POST - Login with admin credentials (admin@gmail.com / admin123)",
+            "/signup": "POST - Signup (disabled - only admin access)",
+            "/logout": "POST - Logout current session",
+            "/profile": "GET - Get user profile (requires auth)",
+            "/verify": "GET - Verify authentication token",
             "/forecast": "GET - Returns sales forecast for next N days",
             "/ai-insights": "GET - Returns AI-generated insights",
-            "/predictive-insights": "GET - Returns comprehensive predictive insights (weather + holidays + sales)",
-            "/holidays": "GET - Returns upcoming holidays for next 30 days",
-            "/weather-forecast": "GET - Returns weather forecast for next 30 days",
+            "/predictive-insights": "GET - Returns comprehensive predictive insights",
+            "/holidays": "GET - Returns upcoming holidays",
+            "/weather-forecast": "GET - Returns weather forecast",
             "/sales-data": "GET - Returns sales trend data",
             "/dashboard-metrics": "GET - Returns dashboard key metrics",
             "/best-selling": "GET - Returns best-selling product",
@@ -70,9 +88,96 @@ def root():
             "/customer-feedback": "GET - Returns recent customer feedback",
             "/barista-schedule": "GET - Returns barista schedule",
             "/sales-analytics": "GET - Returns aggregated sales analytics",
-            "/cash-flow": "GET - Returns cash flow data (income vs expenses)",
+            "/cash-flow": "GET - Returns cash flow data",
+            "/ingredients": "GET - Get all ingredients",
+            "/products": "GET - Get all products",
+            "/settings/profile": "GET/PUT - Get/Update user profile",
+            "/settings/shop": "GET/PUT - Get/Update shop details",
+            "/settings/notifications": "GET/PUT - Get/Update notification preferences",
+            "/settings/change-password": "POST - Change password",
+            "/settings/sessions": "GET - Get active sessions",
+            "/settings/logout-session": "POST - Logout specific session",
+            "/settings/logout-all-sessions": "POST - Logout all other sessions",
             "/docs": "API documentation"
         }
+    }
+
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@app.post("/login", response_model=AuthResponse)
+async def login(login_data: LoginRequest):
+    """
+    Login with admin credentials
+    
+    Email: admin@gmail.com
+    Password: admin123
+    
+    Returns authentication token for subsequent requests
+    """
+    return await login_user(login_data)
+
+
+@app.post("/signup", response_model=AuthResponse)
+async def signup(signup_data: SignupRequest):
+    """
+    Signup endpoint (disabled - only admin user exists)
+    """
+    return await signup_user(signup_data)
+
+
+@app.post("/logout")
+async def logout(authorization: Optional[str] = Header(None)):
+    """
+    Logout current user session
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    return await logout_user(token)
+
+
+@app.get("/profile", response_model=UserResponse)
+async def profile(authorization: Optional[str] = Header(None)):
+    """
+    Get current user profile
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    return await get_user_profile(token)
+
+
+@app.get("/verify")
+async def verify(authorization: Optional[str] = Header(None)):
+    """
+    Verify if authentication token is valid
+    Requires: Authorization header with Bearer token
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    user = await verify_token(token)
+    
+    return {
+        "valid": True,
+        "user": user
     }
 
 @app.get("/forecast")
@@ -765,22 +870,37 @@ def get_weather_forecast(days: int = 30):
 
 
 @app.get("/sales-analytics")
-def get_sales_analytics():
+def get_sales_analytics(period: str = "today"):
     """
     Returns aggregated sales analytics data for the analytics page
+    Supports: today, yesterday, week, month
     """
     if engine is None:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
     try:
-        # Get 30-day summary
-        query_summary = """
+        # Determine date for analysis
+        if period == "yesterday":
+            target_date = "DATE_SUB('2025-11-30', INTERVAL 1 DAY)"
+            date_filter = f"DATE(transaction_date) = {target_date}"
+        elif period == "week":
+            target_date = "'2025-11-30'"
+            date_filter = f"transaction_date >= DATE_SUB({target_date}, INTERVAL 7 DAY)"
+        elif period == "month":
+            target_date = "'2025-11-30'"
+            date_filter = f"transaction_date >= DATE_SUB({target_date}, INTERVAL 30 DAY)"
+        else:  # today
+            target_date = "'2025-11-30'"
+            date_filter = f"DATE(transaction_date) = {target_date}"
+
+        # Get summary
+        query_summary = f"""
             SELECT 
                 SUM(transaction_qty * unit_price) as total_revenue,
                 COUNT(DISTINCT transaction_id) as total_orders,
                 SUM(transaction_qty) as total_items
             FROM transactions
-            WHERE transaction_date >= DATE_SUB('2025-11-30', INTERVAL 30 DAY)
+            WHERE {date_filter}
         """
         summary_df = pd.read_sql(query_summary, engine)
         
@@ -788,7 +908,7 @@ def get_sales_analytics():
         total_orders = int(summary_df['total_orders'].iloc[0] or 0)
         avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
 
-        # Get product breakdown
+        # Get product breakdown - always use last 30 days for consistency
         query_products = """
             SELECT 
                 product_detail as name,
@@ -809,32 +929,35 @@ def get_sales_analytics():
         else:
             product_sales = []
 
-        # Get hourly breakdown for today
-        query_hourly = """
-            SELECT 
-                HOUR(transaction_time) as hour,
-                SUM(transaction_qty * unit_price) as sales
-            FROM transactions
-            WHERE DATE(transaction_date) = '2025-11-30'
-            GROUP BY HOUR(transaction_time)
-            ORDER BY hour
-        """
-        hourly_df = pd.read_sql(query_hourly, engine)
-        
-        if not hourly_df.empty:
-            hourly_sales = []
-            for _, row in hourly_df.iterrows():
-                hour = int(row['hour'])
-                time_label = f"{hour % 12 if hour % 12 != 0 else 12}{'PM' if hour >= 12 else 'AM'}"
-                hourly_sales.append({
-                    "time": time_label,
-                    "sales": float(row['sales'])
-                })
+        # Get hourly breakdown
+        if period in ["today", "yesterday"]:
+            query_hourly = f"""
+                SELECT 
+                    HOUR(transaction_time) as hour,
+                    SUM(transaction_qty * unit_price) as sales
+                FROM transactions
+                WHERE {date_filter}
+                GROUP BY HOUR(transaction_time)
+                ORDER BY hour
+            """
+            hourly_df = pd.read_sql(query_hourly, engine)
+            
+            if not hourly_df.empty:
+                hourly_sales = []
+                for _, row in hourly_df.iterrows():
+                    hour = int(row['hour'])
+                    time_label = f"{hour % 12 if hour % 12 != 0 else 12}{'PM' if hour >= 12 else 'AM'}"
+                    hourly_sales.append({
+                        "time": time_label,
+                        "sales": float(row['sales'])
+                    })
+            else:
+                hourly_sales = []
         else:
             hourly_sales = []
 
-        # Get daily sales for last 30 days
-        query_daily = """
+        # Get monthly performance data - always fetch last 30 days for monthly view
+        query_monthly = """
             SELECT 
                 DATE(transaction_date) as date,
                 SUM(transaction_qty * unit_price) as sales
@@ -843,25 +966,28 @@ def get_sales_analytics():
             GROUP BY DATE(transaction_date)
             ORDER BY date ASC
         """
-        daily_df = pd.read_sql(query_daily, engine)
+        monthly_df = pd.read_sql(query_monthly, engine)
         
-        if not daily_df.empty:
-            daily_df['date'] = pd.to_datetime(daily_df['date'])
-            monthly_sales = []
-            for _, row in daily_df.iterrows():
+        monthly_sales = []
+        if not monthly_df.empty:
+            monthly_df['date'] = pd.to_datetime(monthly_df['date'])
+            # Calculate average for target line
+            avg_daily_sales = monthly_df['sales'].mean()
+            target_sales = avg_daily_sales * 1.1  # 10% above average as target
+            
+            for _, row in monthly_df.iterrows():
                 monthly_sales.append({
                     "date": row['date'].strftime("%b %d"),
                     "sales": float(row['sales']),
-                    "target": avg_order_value * 10  # Mock target
+                    "target": float(target_sales)
                 })
-        else:
-            monthly_sales = []
 
         return {
+            "period": period,
             "total_revenue": total_revenue,
             "total_orders": total_orders,
             "avg_order_value": avg_order_value,
-            "profit_margin": 24.5,  # Can be calculated if cost data available
+            "profit_margin": 24.5,
             "product_sales": product_sales,
             "hourly_sales": hourly_sales,
             "monthly_sales": monthly_sales
@@ -1355,3 +1481,233 @@ def get_product_cost_analysis(product_id: int):
     except Exception as e:
         print(f"Error in cost analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error calculating cost: {str(e)}")
+
+
+# ============================================================================
+# SETTINGS ENDPOINTS
+# ============================================================================
+
+from pydantic import BaseModel
+
+class ProfileUpdate(BaseModel):
+    firstName: str
+    lastName: str
+    email: str
+    phone: str
+    role: str
+
+class ShopDetailsUpdate(BaseModel):
+    shopName: str
+    address: str
+    city: str
+    postal: str
+    shopPhone: str
+    shopEmail: str
+    hours: str
+
+class NotificationPreferences(BaseModel):
+    email: bool
+    sms: bool
+    push: bool
+    lowStock: bool
+    salesReports: bool
+    staffAlerts: bool
+
+class PasswordChange(BaseModel):
+    currentPassword: str
+    newPassword: str
+    confirmPassword: str
+
+@app.get("/settings/profile")
+def get_profile_settings(authorization: Optional[str] = Header(None)):
+    """
+    Get user profile settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "firstName": "Sarah",
+        "lastName": "Ahmed",
+        "email": "admin@gmail.com",
+        "phone": "+880 1712-345678",
+        "role": "Owner & Manager",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah"
+    }
+
+@app.put("/settings/profile")
+def update_profile_settings(profile: ProfileUpdate, authorization: Optional[str] = Header(None)):
+    """
+    Update user profile settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Profile updated successfully",
+        "profile": profile.dict()
+    }
+
+@app.get("/settings/shop")
+def get_shop_settings(authorization: Optional[str] = Header(None)):
+    """
+    Get shop details settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "shopName": "DataBrew Coffee House",
+        "address": "123 Gulshan Avenue, Dhaka 1212",
+        "city": "Dhaka",
+        "postal": "1212",
+        "shopPhone": "+880 2-9876543",
+        "shopEmail": "contact@databrew.com",
+        "hours": "8:00 AM - 11:00 PM (Daily)"
+    }
+
+@app.put("/settings/shop")
+def update_shop_settings(shop: ShopDetailsUpdate, authorization: Optional[str] = Header(None)):
+    """
+    Update shop details settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Shop details updated successfully",
+        "shop": shop.dict()
+    }
+
+@app.get("/settings/notifications")
+def get_notification_preferences(authorization: Optional[str] = Header(None)):
+    """
+    Get notification preferences
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "email": True,
+        "sms": False,
+        "push": True,
+        "lowStock": True,
+        "salesReports": True,
+        "staffAlerts": True
+    }
+
+@app.put("/settings/notifications")
+def update_notification_preferences(preferences: NotificationPreferences, authorization: Optional[str] = Header(None)):
+    """
+    Update notification preferences
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Notification preferences updated successfully",
+        "preferences": preferences.dict()
+    }
+
+@app.post("/settings/change-password")
+def change_password(password_data: PasswordChange, authorization: Optional[str] = Header(None)):
+    """
+    Change user password
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # Validate passwords match
+    if password_data.newPassword != password_data.confirmPassword:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    
+    # Verify current password (in real app, check against database)
+    if password_data.currentPassword != "admin123":
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # In a real app, hash and update password in database here
+    return {
+        "success": True,
+        "message": "Password changed successfully"
+    }
+
+@app.get("/settings/sessions")
+def get_active_sessions(authorization: Optional[str] = Header(None)):
+    """
+    Get active sessions
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "sessions": [
+            {
+                "id": 1,
+                "device": "Chrome on Windows",
+                "location": "Dhaka, Bangladesh",
+                "lastActive": "Active now",
+                "isCurrent": True
+            },
+            {
+                "id": 2,
+                "device": "Mobile App",
+                "location": "Dhaka, Bangladesh",
+                "lastActive": "2 hours ago",
+                "isCurrent": False
+            }
+        ]
+    }
+
+@app.post("/settings/logout-session")
+def logout_session(session_id: int, authorization: Optional[str] = Header(None)):
+    """
+    Logout a specific session
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, remove session from database
+    return {
+        "success": True,
+        "message": f"Session {session_id} logged out successfully"
+    }
+
+@app.post("/settings/logout-all-sessions")
+def logout_all_sessions(authorization: Optional[str] = Header(None)):
+    """
+    Logout all other sessions
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, remove all sessions except current from database
+    return {
+        "success": True,
+        "message": "All other sessions logged out successfully"
+    }

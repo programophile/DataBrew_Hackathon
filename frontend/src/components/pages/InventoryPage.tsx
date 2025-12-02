@@ -2,8 +2,23 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { AlertCircle, AlertTriangle, CheckCircle, Search, Plus, Download, Package } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  Search,
+  Plus,
+  Download,
+  Package,
+} from "lucide-react";
 import { useState } from "react";
 
 const inventoryItems = [
@@ -140,15 +155,21 @@ export function InventoryPage() {
   };
 
   const filteredItems = inventoryItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === "all" || item.status === filterStatus;
+    const matchesFilter =
+      filterStatus === "all" || item.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const criticalCount = inventoryItems.filter(i => i.status === "critical").length;
-  const warningCount = inventoryItems.filter(i => i.status === "warning").length;
-  const safeCount = inventoryItems.filter(i => i.status === "safe").length;
+  const criticalCount = inventoryItems.filter(
+    (i) => i.status === "critical"
+  ).length;
+  const warningCount = inventoryItems.filter(
+    (i) => i.status === "warning"
+  ).length;
+  const safeCount = inventoryItems.filter((i) => i.status === "safe").length;
 
   return (
     <div className="space-y-6">
@@ -166,7 +187,10 @@ export function InventoryPage() {
           </div>
         </Card>
 
-        <Card className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setFilterStatus("critical")}>
+        <Card
+          className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setFilterStatus("critical")}
+        >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-3 bg-red-100 rounded-xl">
               <AlertCircle className="w-6 h-6 text-red-600" />
@@ -179,7 +203,10 @@ export function InventoryPage() {
           <p className="text-xs text-red-600">Reorder immediately</p>
         </Card>
 
-        <Card className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setFilterStatus("warning")}>
+        <Card
+          className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setFilterStatus("warning")}
+        >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-3 bg-orange-100 rounded-xl">
               <AlertTriangle className="w-6 h-6 text-orange-600" />
@@ -192,7 +219,10 @@ export function InventoryPage() {
           <p className="text-xs text-orange-600">Monitor closely</p>
         </Card>
 
-        <Card className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setFilterStatus("safe")}>
+        <Card
+          className="p-5 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setFilterStatus("safe")}
+        >
           <div className="flex items-center gap-3 mb-2">
             <div className="p-3 bg-green-100 rounded-xl">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -211,52 +241,50 @@ export function InventoryPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-[#8b5e3c]">Inventory Management</h3>
-            <p className="text-sm text-[#8b5e3c]/60">Track and manage your stock levels</p>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#8b5e3c]/40" />
-              <Input
-                placeholder="Search items..."
-                className="pl-10 w-64 border-[#d8c3a5]/40 bg-white"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Button variant="outline" className="border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#d8c3a5]/20">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button className="bg-[#8b5e3c] hover:bg-[#b08968] text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
+            <p className="text-sm text-[#8b5e3c]/60">
+              Track and manage your stock levels
+            </p>
           </div>
         </div>
 
         {/* Filter Badges */}
         <div className="flex gap-2 mb-4">
           <Badge
-            className={`cursor-pointer ${filterStatus === "all" ? "bg-[#8b5e3c] text-white" : "bg-[#d8c3a5]/20 text-[#8b5e3c] hover:bg-[#d8c3a5]/40"}`}
+            className={`cursor-pointer ${
+              filterStatus === "all"
+                ? "bg-[#8b5e3c] text-white"
+                : "bg-[#d8c3a5]/20 text-[#8b5e3c] hover:bg-[#d8c3a5]/40"
+            }`}
             onClick={() => setFilterStatus("all")}
           >
             All Items
           </Badge>
           <Badge
-            className={`cursor-pointer ${filterStatus === "critical" ? "bg-red-600 text-white" : "bg-red-100 text-red-700 hover:bg-red-200"}`}
+            className={`cursor-pointer ${
+              filterStatus === "critical"
+                ? "bg-red-600 text-white"
+                : "bg-red-100 text-red-700 hover:bg-red-200"
+            }`}
             onClick={() => setFilterStatus("critical")}
           >
             Critical
           </Badge>
           <Badge
-            className={`cursor-pointer ${filterStatus === "warning" ? "bg-orange-600 text-white" : "bg-orange-100 text-orange-700 hover:bg-orange-200"}`}
+            className={`cursor-pointer ${
+              filterStatus === "warning"
+                ? "bg-orange-600 text-white"
+                : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+            }`}
             onClick={() => setFilterStatus("warning")}
           >
             Low Stock
           </Badge>
           <Badge
-            className={`cursor-pointer ${filterStatus === "safe" ? "bg-green-600 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"}`}
+            className={`cursor-pointer ${
+              filterStatus === "safe"
+                ? "bg-green-600 text-white"
+                : "bg-green-100 text-green-700 hover:bg-green-200"
+            }`}
             onClick={() => setFilterStatus("safe")}
           >
             Healthy
@@ -278,25 +306,44 @@ export function InventoryPage() {
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => (
-                <TableRow key={item.id} className="border-[#d8c3a5]/30 hover:bg-[#d8c3a5]/10">
+                <TableRow
+                  key={item.id}
+                  className="border-[#d8c3a5]/30 hover:bg-[#d8c3a5]/10"
+                >
                   <TableCell className="text-[#8b5e3c]">{item.name}</TableCell>
-                  <TableCell className="text-[#8b5e3c]/80">{item.category}</TableCell>
+                  <TableCell className="text-[#8b5e3c]/80">
+                    {item.category}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="text-[#8b5e3c]">{item.currentStock} {item.unit}</span>
+                      <span className="text-[#8b5e3c]">
+                        {item.currentStock} {item.unit}
+                      </span>
                       {item.currentStock < item.minStock && (
-                        <span className="text-xs text-red-600">(Below min)</span>
+                        <span className="text-xs text-red-600">
+                          (Below min)
+                        </span>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-[#8b5e3c]/80">{item.reorderPoint} {item.unit}</TableCell>
-                  <TableCell className="text-[#8b5e3c]/80">{item.supplier}</TableCell>
-                  <TableCell className="text-[#8b5e3c]/80">{item.lastRestocked}</TableCell>
+                  <TableCell className="text-[#8b5e3c]/80">
+                    {item.reorderPoint} {item.unit}
+                  </TableCell>
+                  <TableCell className="text-[#8b5e3c]/80">
+                    {item.supplier}
+                  </TableCell>
+                  <TableCell className="text-[#8b5e3c]/80">
+                    {item.lastRestocked}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(item.status)}
-                      <Badge variant="outline" className={getStatusBadge(item.status)}>
-                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      <Badge
+                        variant="outline"
+                        className={getStatusBadge(item.status)}
+                      >
+                        {item.status.charAt(0).toUpperCase() +
+                          item.status.slice(1)}
                       </Badge>
                     </div>
                   </TableCell>

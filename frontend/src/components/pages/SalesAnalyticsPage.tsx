@@ -37,11 +37,14 @@ export function SalesAnalyticsPage() {
     monthly_sales: [] as Array<{ date: string; sales: number; target: number }>,
   });
   const [loading, setLoading] = useState(true);
+  const [hourlyPeriod, setHourlyPeriod] = useState<"today" | "yesterday">(
+    "today"
+  );
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const data = await apiService.getSalesAnalytics();
+        const data = await apiService.getSalesAnalytics(hourlyPeriod);
         setAnalytics(data);
       } catch (error) {
         console.error("Failed to fetch sales analytics:", error);
@@ -51,7 +54,7 @@ export function SalesAnalyticsPage() {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [hourlyPeriod]);
 
   return (
     <div className="space-y-6">
@@ -160,14 +163,24 @@ export function SalesAnalyticsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#8b5e3c] hover:text-white bg-[#8b5e3c] text-white"
+                  onClick={() => setHourlyPeriod("today")}
+                  className={`border-[#d8c3a5] transition-colors ${
+                    hourlyPeriod === "today"
+                      ? "bg-[#8b5e3c] text-white hover:bg-[#8b5e3c]/90"
+                      : "text-[#8b5e3c] hover:bg-[#8b5e3c] hover:text-white"
+                  }`}
                 >
                   Today
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#8b5e3c] hover:text-white"
+                  onClick={() => setHourlyPeriod("yesterday")}
+                  className={`border-[#d8c3a5] transition-colors ${
+                    hourlyPeriod === "yesterday"
+                      ? "bg-[#8b5e3c] text-white hover:bg-[#8b5e3c]/90"
+                      : "text-[#8b5e3c] hover:bg-[#8b5e3c] hover:text-white"
+                  }`}
                 >
                   Yesterday
                 </Button>

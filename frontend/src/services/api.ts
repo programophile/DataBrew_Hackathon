@@ -101,8 +101,9 @@ export const apiService = {
     }>("/customer-feedback"),
 
   // Get sales analytics
-  getSalesAnalytics: () =>
+  getSalesAnalytics: (period: string = "today") =>
     apiRequest<{
+      period: string;
       total_revenue: number;
       total_orders: number;
       avg_order_value: number;
@@ -121,7 +122,7 @@ export const apiService = {
         sales: number;
         target: number;
       }>;
-    }>("/sales-analytics"),
+    }>(`/sales-analytics?period=${period}`),
 
   // Get cash flow data
   getCashFlow: (period: string = "month") =>
@@ -163,9 +164,9 @@ export const apiService = {
     supplier?: string;
     notes?: string;
   }) => {
-    console.log('[API] addIngredient called');
-    console.log('[API] URL:', `${API_BASE_URL}/ingredients`);
-    console.log('[API] Payload:', payload);
+    console.log("[API] addIngredient called");
+    console.log("[API] URL:", `${API_BASE_URL}/ingredients`);
+    console.log("[API] Payload:", payload);
 
     try {
       const response = await fetch(`${API_BASE_URL}/ingredients`, {
@@ -174,20 +175,20 @@ export const apiService = {
         body: JSON.stringify(payload),
       });
 
-      console.log('[API] Response status:', response.status);
-      console.log('[API] Response ok:', response.ok);
+      console.log("[API] Response status:", response.status);
+      console.log("[API] Response ok:", response.ok);
 
       if (!response.ok) {
         const text = await response.text();
-        console.error('[API] Error response:', text);
+        console.error("[API] Error response:", text);
         throw new Error(`Add ingredient failed: ${response.status} ${text}`);
       }
 
       const result = await response.json();
-      console.log('[API] Success result:', result);
+      console.log("[API] Success result:", result);
       return result;
     } catch (error) {
-      console.error('[API] Fetch error:', error);
+      console.error("[API] Fetch error:", error);
       throw error;
     }
   },
@@ -236,9 +237,9 @@ export const apiService = {
     selling_price: number;
     description?: string;
   }) => {
-    console.log('[API] addProduct called');
-    console.log('[API] URL:', `${API_BASE_URL}/products`);
-    console.log('[API] Payload:', payload);
+    console.log("[API] addProduct called");
+    console.log("[API] URL:", `${API_BASE_URL}/products`);
+    console.log("[API] Payload:", payload);
 
     try {
       const response = await fetch(`${API_BASE_URL}/products`, {
@@ -247,19 +248,19 @@ export const apiService = {
         body: JSON.stringify(payload),
       });
 
-      console.log('[API] Response status:', response.status);
+      console.log("[API] Response status:", response.status);
 
       if (!response.ok) {
         const text = await response.text();
-        console.error('[API] Error response:', text);
+        console.error("[API] Error response:", text);
         throw new Error(`Add product failed: ${response.status} ${text}`);
       }
 
       const result = await response.json();
-      console.log('[API] Success result:', result);
+      console.log("[API] Success result:", result);
       return result;
     } catch (error) {
-      console.error('[API] Fetch error:', error);
+      console.error("[API] Fetch error:", error);
       throw error;
     }
   },
@@ -269,9 +270,12 @@ export const apiService = {
     productId: number,
     payload: { ingredient_id: number; quantity_needed: number; notes?: string }
   ) => {
-    console.log('[API] addProductIngredient called');
-    console.log('[API] URL:', `${API_BASE_URL}/products/${productId}/ingredients`);
-    console.log('[API] Payload:', payload);
+    console.log("[API] addProductIngredient called");
+    console.log(
+      "[API] URL:",
+      `${API_BASE_URL}/products/${productId}/ingredients`
+    );
+    console.log("[API] Payload:", payload);
 
     try {
       const response = await fetch(
@@ -283,21 +287,21 @@ export const apiService = {
         }
       );
 
-      console.log('[API] Response status:', response.status);
+      console.log("[API] Response status:", response.status);
 
       if (!response.ok) {
         const text = await response.text();
-        console.error('[API] Error response:', text);
+        console.error("[API] Error response:", text);
         throw new Error(
           `Add recipe ingredient failed: ${response.status} ${text}`
         );
       }
 
       const result = await response.json();
-      console.log('[API] Success result:', result);
+      console.log("[API] Success result:", result);
       return result;
     } catch (error) {
-      console.error('[API] Fetch error:', error);
+      console.error("[API] Fetch error:", error);
       throw error;
     }
   },
@@ -339,10 +343,182 @@ export const apiService = {
 
   // Get product ingredients
   getProductIngredients: async (productId: number) => {
-    const response = await fetch(`${API_BASE_URL}/products/${productId}/ingredients`);
+    const response = await fetch(
+      `${API_BASE_URL}/products/${productId}/ingredients`
+    );
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Get product ingredients failed: ${response.status} ${text}`);
+      throw new Error(
+        `Get product ingredients failed: ${response.status} ${text}`
+      );
+    }
+    return response.json();
+  },
+
+  // Settings API methods
+  getProfileSettings: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get profile failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateProfileSettings: async (profile: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(profile),
+    });
+    if (!response.ok) {
+      throw new Error(`Update profile failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getShopSettings: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/shop`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get shop settings failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateShopSettings: async (shop: {
+    shopName: string;
+    address: string;
+    city: string;
+    postal: string;
+    shopPhone: string;
+    shopEmail: string;
+    hours: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/shop`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(shop),
+    });
+    if (!response.ok) {
+      throw new Error(`Update shop settings failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getNotificationPreferences: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get notifications failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateNotificationPreferences: async (preferences: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+    lowStock: boolean;
+    salesReports: boolean;
+    staffAlerts: boolean;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/notifications`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(preferences),
+    });
+    if (!response.ok) {
+      throw new Error(`Update notifications failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  changePassword: async (passwordData: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(passwordData),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(
+        data.detail || `Change password failed: ${response.status}`
+      );
+    }
+    return response.json();
+  },
+
+  getActiveSessions: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/sessions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get sessions failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  logoutSession: async (sessionId: number) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/logout-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    if (!response.ok) {
+      throw new Error(`Logout session failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  logoutAllSessions: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(
+      `${API_BASE_URL}/settings/logout-all-sessions`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Logout all sessions failed: ${response.status}`);
     }
     return response.json();
   },
