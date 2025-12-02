@@ -354,4 +354,172 @@ export const apiService = {
     }
     return response.json();
   },
+
+  // Settings API methods
+  getProfileSettings: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get profile failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateProfileSettings: async (profile: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(profile),
+    });
+    if (!response.ok) {
+      throw new Error(`Update profile failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getShopSettings: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/shop`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get shop settings failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateShopSettings: async (shop: {
+    shopName: string;
+    address: string;
+    city: string;
+    postal: string;
+    shopPhone: string;
+    shopEmail: string;
+    hours: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/shop`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(shop),
+    });
+    if (!response.ok) {
+      throw new Error(`Update shop settings failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getNotificationPreferences: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get notifications failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  updateNotificationPreferences: async (preferences: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+    lowStock: boolean;
+    salesReports: boolean;
+    staffAlerts: boolean;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/notifications`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(preferences),
+    });
+    if (!response.ok) {
+      throw new Error(`Update notifications failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  changePassword: async (passwordData: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(passwordData),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(
+        data.detail || `Change password failed: ${response.status}`
+      );
+    }
+    return response.json();
+  },
+
+  getActiveSessions: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/sessions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Get sessions failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  logoutSession: async (sessionId: number) => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/settings/logout-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    if (!response.ok) {
+      throw new Error(`Logout session failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  logoutAllSessions: async () => {
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(
+      `${API_BASE_URL}/settings/logout-all-sessions`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Logout all sessions failed: ${response.status}`);
+    }
+    return response.json();
+  },
 };

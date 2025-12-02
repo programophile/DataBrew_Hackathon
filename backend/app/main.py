@@ -91,6 +91,13 @@ def root():
             "/cash-flow": "GET - Returns cash flow data",
             "/ingredients": "GET - Get all ingredients",
             "/products": "GET - Get all products",
+            "/settings/profile": "GET/PUT - Get/Update user profile",
+            "/settings/shop": "GET/PUT - Get/Update shop details",
+            "/settings/notifications": "GET/PUT - Get/Update notification preferences",
+            "/settings/change-password": "POST - Change password",
+            "/settings/sessions": "GET - Get active sessions",
+            "/settings/logout-session": "POST - Logout specific session",
+            "/settings/logout-all-sessions": "POST - Logout all other sessions",
             "/docs": "API documentation"
         }
     }
@@ -1474,3 +1481,233 @@ def get_product_cost_analysis(product_id: int):
     except Exception as e:
         print(f"Error in cost analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error calculating cost: {str(e)}")
+
+
+# ============================================================================
+# SETTINGS ENDPOINTS
+# ============================================================================
+
+from pydantic import BaseModel
+
+class ProfileUpdate(BaseModel):
+    firstName: str
+    lastName: str
+    email: str
+    phone: str
+    role: str
+
+class ShopDetailsUpdate(BaseModel):
+    shopName: str
+    address: str
+    city: str
+    postal: str
+    shopPhone: str
+    shopEmail: str
+    hours: str
+
+class NotificationPreferences(BaseModel):
+    email: bool
+    sms: bool
+    push: bool
+    lowStock: bool
+    salesReports: bool
+    staffAlerts: bool
+
+class PasswordChange(BaseModel):
+    currentPassword: str
+    newPassword: str
+    confirmPassword: str
+
+@app.get("/settings/profile")
+def get_profile_settings(authorization: Optional[str] = Header(None)):
+    """
+    Get user profile settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "firstName": "Sarah",
+        "lastName": "Ahmed",
+        "email": "admin@gmail.com",
+        "phone": "+880 1712-345678",
+        "role": "Owner & Manager",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah"
+    }
+
+@app.put("/settings/profile")
+def update_profile_settings(profile: ProfileUpdate, authorization: Optional[str] = Header(None)):
+    """
+    Update user profile settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Profile updated successfully",
+        "profile": profile.dict()
+    }
+
+@app.get("/settings/shop")
+def get_shop_settings(authorization: Optional[str] = Header(None)):
+    """
+    Get shop details settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "shopName": "DataBrew Coffee House",
+        "address": "123 Gulshan Avenue, Dhaka 1212",
+        "city": "Dhaka",
+        "postal": "1212",
+        "shopPhone": "+880 2-9876543",
+        "shopEmail": "contact@databrew.com",
+        "hours": "8:00 AM - 11:00 PM (Daily)"
+    }
+
+@app.put("/settings/shop")
+def update_shop_settings(shop: ShopDetailsUpdate, authorization: Optional[str] = Header(None)):
+    """
+    Update shop details settings
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Shop details updated successfully",
+        "shop": shop.dict()
+    }
+
+@app.get("/settings/notifications")
+def get_notification_preferences(authorization: Optional[str] = Header(None)):
+    """
+    Get notification preferences
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "email": True,
+        "sms": False,
+        "push": True,
+        "lowStock": True,
+        "salesReports": True,
+        "staffAlerts": True
+    }
+
+@app.put("/settings/notifications")
+def update_notification_preferences(preferences: NotificationPreferences, authorization: Optional[str] = Header(None)):
+    """
+    Update notification preferences
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, update database here
+    return {
+        "success": True,
+        "message": "Notification preferences updated successfully",
+        "preferences": preferences.dict()
+    }
+
+@app.post("/settings/change-password")
+def change_password(password_data: PasswordChange, authorization: Optional[str] = Header(None)):
+    """
+    Change user password
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # Validate passwords match
+    if password_data.newPassword != password_data.confirmPassword:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    
+    # Verify current password (in real app, check against database)
+    if password_data.currentPassword != "admin123":
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # In a real app, hash and update password in database here
+    return {
+        "success": True,
+        "message": "Password changed successfully"
+    }
+
+@app.get("/settings/sessions")
+def get_active_sessions(authorization: Optional[str] = Header(None)):
+    """
+    Get active sessions
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "sessions": [
+            {
+                "id": 1,
+                "device": "Chrome on Windows",
+                "location": "Dhaka, Bangladesh",
+                "lastActive": "Active now",
+                "isCurrent": True
+            },
+            {
+                "id": 2,
+                "device": "Mobile App",
+                "location": "Dhaka, Bangladesh",
+                "lastActive": "2 hours ago",
+                "isCurrent": False
+            }
+        ]
+    }
+
+@app.post("/settings/logout-session")
+def logout_session(session_id: int, authorization: Optional[str] = Header(None)):
+    """
+    Logout a specific session
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, remove session from database
+    return {
+        "success": True,
+        "message": f"Session {session_id} logged out successfully"
+    }
+
+@app.post("/settings/logout-all-sessions")
+def logout_all_sessions(authorization: Optional[str] = Header(None)):
+    """
+    Logout all other sessions
+    """
+    # Verify token
+    user = verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # In a real app, remove all sessions except current from database
+    return {
+        "success": True,
+        "message": "All other sessions logged out successfully"
+    }
