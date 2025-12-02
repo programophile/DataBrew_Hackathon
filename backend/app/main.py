@@ -863,22 +863,37 @@ def get_weather_forecast(days: int = 30):
 
 
 @app.get("/sales-analytics")
-def get_sales_analytics():
+def get_sales_analytics(period: str = "today"):
     """
     Returns aggregated sales analytics data for the analytics page
+    Supports: today, yesterday, week, month
     """
     if engine is None:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
     try:
-        # Get 30-day summary
-        query_summary = """
+        # Determine date for analysis
+        if period == "yesterday":
+            target_date = "DATE_SUB('2025-11-30', INTERVAL 1 DAY)"
+            date_filter = f"DATE(transaction_date) = {target_date}"
+        elif period == "week":
+            target_date = "'2025-11-30'"
+            date_filter = f"transaction_date >= DATE_SUB({target_date}, INTERVAL 7 DAY)"
+        elif period == "month":
+            target_date = "'2025-11-30'"
+            date_filter = f"transaction_date >= DATE_SUB({target_date}, INTERVAL 30 DAY)"
+        else:  # today
+            target_date = "'2025-11-30'"
+            date_filter = f"DATE(transaction_date) = {target_date}"
+
+        # Get summary
+        query_summary = f"""
             SELECT 
                 SUM(transaction_qty * unit_price) as total_revenue,
                 COUNT(DISTINCT transaction_id) as total_orders,
                 SUM(transaction_qty) as total_items
             FROM transactions
-            WHERE transaction_date >= DATE_SUB('2025-11-30', INTERVAL 30 DAY)
+            WHERE {date_filter}
         """
         summary_df = pd.read_sql(query_summary, engine)
         
@@ -886,7 +901,7 @@ def get_sales_analytics():
         total_orders = int(summary_df['total_orders'].iloc[0] or 0)
         avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
 
-        # Get product breakdown
+        # Get product breakdown - always use last 30 days for consistency
         query_products = """
             SELECT 
                 product_detail as name,
@@ -907,32 +922,35 @@ def get_sales_analytics():
         else:
             product_sales = []
 
-        # Get hourly breakdown for today
-        query_hourly = """
-            SELECT 
-                HOUR(transaction_time) as hour,
-                SUM(transaction_qty * unit_price) as sales
-            FROM transactions
-            WHERE DATE(transaction_date) = '2025-11-30'
-            GROUP BY HOUR(transaction_time)
-            ORDER BY hour
-        """
-        hourly_df = pd.read_sql(query_hourly, engine)
-        
-        if not hourly_df.empty:
-            hourly_sales = []
-            for _, row in hourly_df.iterrows():
-                hour = int(row['hour'])
-                time_label = f"{hour % 12 if hour % 12 != 0 else 12}{'PM' if hour >= 12 else 'AM'}"
-                hourly_sales.append({
-                    "time": time_label,
-                    "sales": float(row['sales'])
-                })
+        # Get hourly breakdown
+        if period in ["today", "yesterday"]:
+            query_hourly = f"""
+                SELECT 
+                    HOUR(transaction_time) as hour,
+                    SUM(transaction_qty * unit_price) as sales
+                FROM transactions
+                WHERE {date_filter}
+                GROUP BY HOUR(transaction_time)
+                ORDER BY hour
+            """
+            hourly_df = pd.read_sql(query_hourly, engine)
+            
+            if not hourly_df.empty:
+                hourly_sales = []
+                for _, row in hourly_df.iterrows():
+                    hour = int(row['hour'])
+                    time_label = f"{hour % 12 if hour % 12 != 0 else 12}{'PM' if hour >= 12 else 'AM'}"
+                    hourly_sales.append({
+                        "time": time_label,
+                        "sales": float(row['sales'])
+                    })
+            else:
+                hourly_sales = []
         else:
             hourly_sales = []
 
-        # Get daily sales for last 30 days
-        query_daily = """
+        # Get monthly performance data - always fetch last 30 days for monthly view
+        query_monthly = """
             SELECT 
                 DATE(transaction_date) as date,
                 SUM(transaction_qty * unit_price) as sales
@@ -941,25 +959,28 @@ def get_sales_analytics():
             GROUP BY DATE(transaction_date)
             ORDER BY date ASC
         """
-        daily_df = pd.read_sql(query_daily, engine)
+        monthly_df = pd.read_sql(query_monthly, engine)
         
-        if not daily_df.empty:
-            daily_df['date'] = pd.to_datetime(daily_df['date'])
-            monthly_sales = []
-            for _, row in daily_df.iterrows():
+        monthly_sales = []
+        if not monthly_df.empty:
+            monthly_df['date'] = pd.to_datetime(monthly_df['date'])
+            # Calculate average for target line
+            avg_daily_sales = monthly_df['sales'].mean()
+            target_sales = avg_daily_sales * 1.1  # 10% above average as target
+            
+            for _, row in monthly_df.iterrows():
                 monthly_sales.append({
                     "date": row['date'].strftime("%b %d"),
                     "sales": float(row['sales']),
-                    "target": avg_order_value * 10  # Mock target
+                    "target": float(target_sales)
                 })
-        else:
-            monthly_sales = []
 
         return {
+            "period": period,
             "total_revenue": total_revenue,
             "total_orders": total_orders,
             "avg_order_value": avg_order_value,
-            "profit_margin": 24.5,  # Can be calculated if cost data available
+            "profit_margin": 24.5,
             "product_sales": product_sales,
             "hourly_sales": hourly_sales,
             "monthly_sales": monthly_sales

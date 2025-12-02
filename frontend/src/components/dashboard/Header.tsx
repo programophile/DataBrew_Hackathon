@@ -12,7 +12,7 @@ export function Header({ onLogout }: { onLogout?: () => void }) {
       <div>
         <h2 className="text-[#8b5e3c]">AI Overview</h2>
         <p className="text-xs text-[#8b5e3c]/60">
-          ☕ BrewMind Analytics — Turning Every Cup Into Data-Driven Growth
+          ☕ DataBrew Analytics — Turning Every Business Into AI-Driven Growth
         </p>
       </div>
 

@@ -37,7 +37,7 @@ export function Sidebar({ activePage, onPageChange, onLogout }: SidebarProps) {
           <Coffee className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-[#8b5e3c]">BrewMind</h1>
+          <h1 className="text-[#8b5e3c]">DataBrew</h1>
           <p className="text-xs text-[#8b5e3c]/60">Analytics</p>
         </div>
       </div>
