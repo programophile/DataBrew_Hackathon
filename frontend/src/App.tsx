@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LandingPage } from "./components/pages/LandingPage";
 import { Sidebar } from "./components/dashboard/Sidebar";
 import { Header } from "./components/dashboard/Header";
 import { DashboardPage } from "./components/pages/DashboardPage";
@@ -19,20 +20,35 @@ function App() {
     return !!token;
   });
   const [authView, setAuthView] = useState<"login" | "signup">("login");
+  const [showLanding, setShowLanding] = useState(() => {
+    // Show landing page on first visit or when explicitly logged out
+    const hasVisited = localStorage.getItem("hasVisited");
+    return !hasVisited;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleGetStarted = () => {
+    localStorage.setItem("hasVisited", "true");
+    setShowLanding(false);
+    setAuthView("login");
+  };
 
   const handleLogin = (token: string, user: any) => {
     // Store token and user info
     localStorage.setItem("authToken", token);
     localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("hasVisited", "true");
     setIsAuthenticated(true);
+    setShowLanding(false);
   };
 
   const handleSignup = (token: string, user: any) => {
     // Store token and user info
     localStorage.setItem("authToken", token);
     localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("hasVisited", "true");
     setIsAuthenticated(true);
+    setShowLanding(false);
   };
 
   const handleLogout = async () => {
@@ -58,7 +74,14 @@ function App() {
     localStorage.removeItem("user");
     setIsAuthenticated(false);
     setAuthView("login");
+    setShowLanding(true); // Show landing page again after logout
+    localStorage.removeItem("hasVisited");
   };
+
+  // Show landing page if not visited yet
+  if (showLanding && !isAuthenticated) {
+    return <LandingPage onGetStarted={handleGetStarted} />;
+  }
 
   // If not authenticated, show login/signup pages
   if (!isAuthenticated) {
@@ -117,13 +140,15 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <Header 
+        <Header
           onLogout={handleLogout}
           onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{renderPage()}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {renderPage()}
+        </main>
       </div>
     </div>
   );
